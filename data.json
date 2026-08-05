@@ -10,13 +10,14 @@
     {"date": "2026-07-31", "pendingSent": 260, "totalConnections": 19494, "unreadMessages": 0},
     {"date": "2026-08-01", "pendingSent": 231, "totalConnections": 19500, "unreadMessages": 1},
     {"date": "2026-08-03", "pendingSent": 231, "totalConnections": 19500, "unreadMessages": 1},
-    {"date": "2026-08-04", "pendingSent": 236, "totalConnections": 19507, "unreadMessages": 1}
+    {"date": "2026-08-04", "pendingSent": 236, "totalConnections": 19507, "unreadMessages": 1},
+    {"date": "2026-08-05", "pendingSent": 239, "totalConnections": 19515, "unreadMessages": 4}
   ],
   "weeklySent": {
     "2026-07-27": 89,
-    "2026-08-03": 20
+    "2026-08-03": 40
   },
   "weeklyAccepted": {
-    "2026-08-03": 10
+    "2026-08-03": 19
   }
 }
