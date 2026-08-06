@@ -160,6 +160,9 @@
     <h2 class="section-title">This week</h2>
     <div class="tiles" id="week-tiles"></div>
 
+    <h2 class="section-title">Last week</h2>
+    <div class="tiles" id="last-week-tiles"></div>
+
     <section class="log">
       <h2 class="inner">Weekly log</h2>
       <table id="week-table">
@@ -207,6 +210,7 @@
   function render(data) {
     const history = data.history || [];
     const sentOverrides = data.weeklySent || {};
+    const acceptOverrides = data.weeklyAccepted || {};
     if (!history.length) { document.getElementById('subtitle').textContent = 'No data yet.'; return; }
     const latest = history[history.length - 1];
     const prev = history.length > 1 ? history[history.length - 2] : null;
@@ -226,9 +230,9 @@
         '<div class="value">' + fmt(latest.pendingSent) + '</div>' +
         deltaHtml(latest.pendingSent, prev ? prev.pendingSent : null) +
       '</div>' +
-      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>New connections (accepted)</div>' +
-        '<div class="value">' + (prev ? fmt(latest.totalConnections - prev.totalConnections) : '&mdash;') + '</div>' +
-        (prev ? '<span class="delta">total connections: ' + fmt(latest.totalConnections) + '</span>' : '<span class="delta">baseline set at ' + fmt(latest.totalConnections) + ' total connections</span>') +
+      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>New connections (accepted) ' + (data.todayAccepted != null ? '(counted)' : '') + '</div>' +
+        '<div class="value">' + (data.todayAccepted != null ? fmt(data.todayAccepted) : (prev ? fmt(latest.totalConnections - prev.totalConnections) : '&mdash;')) + '</div>' +
+        '<span class="delta">' + (data.todayAccepted != null ? 'counted from connection dates &middot; ' : '') + 'total connections: ' + fmt(latest.totalConnections) + '</span>' +
       '</div>' +
       '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Unread messages (reply proxy)</div>' +
         '<div class="value">' + fmt(latest.unreadMessages) + '</div>' +
@@ -284,7 +288,9 @@
       const canMeasure = !!priorRow || entries.length >= 2;
       const hasActualSent = Object.prototype.hasOwnProperty.call(sentOverrides, wk);
       const sentValue = hasActualSent ? sentOverrides[wk] : sentEst;
-      return { wk, weekStart, weekEnd, sentEst: sentValue, accepted, isActualSent: hasActualSent, hasBaseline: canMeasure || hasActualSent, complete: isComplete };
+      const hasActualAcc = Object.prototype.hasOwnProperty.call(acceptOverrides, wk);
+      const acceptValue = hasActualAcc ? acceptOverrides[wk] : accepted;
+      return { wk, weekStart, weekEnd, sentEst: sentValue, accepted: acceptValue, isActualSent: hasActualSent, isActualAccepted: hasActualAcc, hasBaseline: canMeasure || hasActualSent || hasActualAcc, complete: isComplete };
     });
 
     function pctHtml(curr, prevVal) {
@@ -318,14 +324,40 @@
         '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.sentEst) : '&mdash;') + '</div>' +
         (currentWeek.isActualSent ? '<span class="delta">manually entered</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.sentEst > priorWeek.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.sentEst, priorWeek.sentEst).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
       '</div>' +
-      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted this week</div>' +
+      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted this week ' + (currentWeek.isActualAccepted ? '(counted)' : '') + '</div>' +
         '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.accepted) : '&mdash;') + '</div>' +
-        (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.accepted > priorWeek.accepted ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.accepted, priorWeek.accepted).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>') +
+        (currentWeek.isActualAccepted ? '<span class="delta">counted from connection dates</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.accepted > priorWeek.accepted ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.accepted, priorWeek.accepted).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
       '</div>' +
       '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Week status</div>' +
         '<div class="value" style="font-size:20px;">' + fmtShort(currentWeek.weekStart) + '&ndash;' + fmtShort(currentWeek.weekEnd) + '</div>' +
         '<span class="delta">' + (currentWeek.complete ? 'complete' : 'in progress') + '</span>' +
       '</div>';
+
+    // ---- Last week tiles ----
+    const lastWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
+    const weekBefore = weeks.length > 2 ? weeks[weeks.length - 3] : null;
+    const lwEl = document.getElementById('last-week-tiles');
+    if (lastWeek) {
+      const lwSentSub = weekBefore
+        ? '<span class="' + (lastWeek.sentEst > weekBefore.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.sentEst, weekBefore.sentEst).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
+        : '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'estimated') + '</span>';
+      const lwAccSub = weekBefore
+        ? '<span class="' + (lastWeek.accepted > weekBefore.accepted ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.accepted, weekBefore.accepted).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
+        : '<span class="delta">completed week</span>';
+      lwEl.innerHTML =
+        '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent last week ' + (lastWeek.isActualSent ? '(manual)' : '(est.)') + '</div>' +
+          '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.sentEst) : '&mdash;') + '</div>' + lwSentSub +
+        '</div>' +
+        '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted last week</div>' +
+          '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.accepted) : '&mdash;') + '</div>' + lwAccSub +
+        '</div>' +
+        '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Week status</div>' +
+          '<div class="value" style="font-size:20px;">' + fmtShort(lastWeek.weekStart) + '&ndash;' + fmtShort(lastWeek.weekEnd) + '</div>' +
+          '<span class="delta">' + (lastWeek.complete ? 'complete' : 'in progress') + '</span>' +
+        '</div>';
+    } else {
+      lwEl.innerHTML = '<div class="tile"><div class="label">Last week</div><span class="delta">no prior week tracked yet &mdash; fills in once a second week of data exists</span></div>';
+    }
 
     const stamp = data.updatedAt || latest.date;
     document.getElementById('subtitle').textContent = 'Last updated ' + stamp + ' · Paul Higgins · source: linkedin.com';
