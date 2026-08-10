@@ -1,6 +1,6 @@
 {
-  "updatedAt": "2026-08-08",
-  "todayAccepted": 0,
+  "updatedAt": "2026-08-10",
+  "todayAccepted": 3,
   "history": [
     {"date": "2026-07-20", "pendingSent": 177, "totalConnections": 19429, "unreadMessages": 9},
     {"date": "2026-07-23", "pendingSent": 186, "totalConnections": 19444, "unreadMessages": 2},
@@ -14,13 +14,16 @@
     {"date": "2026-08-04", "pendingSent": 236, "totalConnections": 19507, "unreadMessages": 1},
     {"date": "2026-08-05", "pendingSent": 239, "totalConnections": 19515, "unreadMessages": 4},
     {"date": "2026-08-06", "pendingSent": 273, "totalConnections": 19523, "unreadMessages": 1},
-    {"date": "2026-08-08", "pendingSent": 286, "totalConnections": 19528, "unreadMessages": 0}
+    {"date": "2026-08-08", "pendingSent": 286, "totalConnections": 19528, "unreadMessages": 0},
+    {"date": "2026-08-10", "pendingSent": 262, "totalConnections": 19538, "unreadMessages": 2}
   ],
   "weeklySent": {
     "2026-07-27": 89,
-    "2026-08-03": 100
+    "2026-08-03": 100,
+    "2026-08-10": 0
   },
   "weeklyAccepted": {
-    "2026-08-03": 32
+    "2026-08-03": 39,
+    "2026-08-10": 3
   }
 }
