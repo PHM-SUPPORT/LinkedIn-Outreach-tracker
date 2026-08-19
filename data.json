@@ -17,7 +17,8 @@
     {"date": "2026-08-08", "pendingSent": 286, "totalConnections": 19528, "unreadMessages": 0},
     {"date": "2026-08-10", "pendingSent": 262, "totalConnections": 19538, "unreadMessages": 2},
     {"date": "2026-08-12", "pendingSent": 256, "totalConnections": 19545, "unreadMessages": 2},
-    {"date": "2026-08-17", "pendingSent": 263, "totalConnections": 19558, "unreadMessages": 3}
+    {"date": "2026-08-17", "pendingSent": 263, "totalConnections": 19558, "unreadMessages": 3},
+    {"date": "2026-08-19", "pendingSent": 256, "totalConnections": 19569, "unreadMessages": 3}
   ],
   "weeklySent": {
     "2026-07-27": 89,
