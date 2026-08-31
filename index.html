@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LinkedIn Outreach Tracker</title>
 <style>
-  :root {
+  /* Single fixed theme, self-painted. Does NOT rely on the host's
+     prefers-color-scheme signal, which is what caused dark-on-dark. */
+  .viz-root {
     color-scheme: light;
     --surface-1:      #ffffff;
     --page-plane:     #f4f4f1;
@@ -18,25 +20,61 @@
     --series-2:       #007a00; /* green - connections */
     --series-3:       #b87400; /* amber - unread */
     --good:           #006300;
+
+    background: var(--page-plane);
+    color: var(--text-primary);
+    min-height: 100vh;
   }
+
   * { box-sizing: border-box; }
   body {
     margin: 0;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     background: var(--page-plane);
     color: var(--text-primary);
-    min-height: 100vh;
   }
   .wrap {
     max-width: 880px;
     margin: 0 auto;
     padding: 32px 20px 60px;
   }
+  header.head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
   header h1 {
     font-size: 22px;
     font-weight: 700;
     margin: 0 0 4px;
     color: var(--text-primary);
+  }
+  .accept-badge {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--series-2);
+    border-radius: 10px;
+    padding: 10px 18px;
+    text-align: right;
+    box-shadow: 0 1px 2px rgba(11,11,11,0.04);
+    min-width: 132px;
+  }
+  .accept-badge .ab-value {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--series-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .accept-badge .ab-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    margin-top: 5px;
   }
   header p {
     margin: 0;
@@ -57,7 +95,6 @@
     gap: 12px;
     margin: 12px 0;
   }
-  @media (max-width: 640px) { .tiles { grid-template-columns: 1fr; } }
   .tile {
     background: var(--surface-1);
     border: 1px solid var(--border);
@@ -107,7 +144,6 @@
     padding: 18px 20px 8px;
     margin-bottom: 4px;
     box-shadow: 0 1px 2px rgba(11,11,11,0.04);
-    overflow-x: auto;
   }
   section.log h2.inner {
     font-size: 14px;
@@ -122,7 +158,6 @@
     border-bottom: 1px solid var(--gridline);
     font-variant-numeric: tabular-nums;
     color: var(--text-primary);
-    white-space: nowrap;
   }
   th {
     color: var(--text-muted);
@@ -142,234 +177,277 @@
     line-height: 1.5;
   }
   .note strong { color: var(--text-secondary); }
-  #error { display: none; color: #b00020; font-size: 13px; margin-top: 12px; }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>LinkedIn Outreach Tracker</h1>
-      <p id="subtitle">Loading&hellip;</p>
-    </header>
+  <div class="viz-root">
+    <div class="wrap">
+      <header class="head-row">
+        <div>
+          <h1>LinkedIn Outreach Tracker</h1>
+          <p id="subtitle">Updated daily &middot; Paul Higgins &middot; source: linkedin.com</p>
+        </div>
+        <div class="accept-badge" id="accept-badge" hidden>
+          <div class="ab-value" id="ab-value">&mdash;</div>
+          <div class="ab-label" id="ab-label">Acceptance rate</div>
+        </div>
+      </header>
 
-    <div id="error">Couldn't load data.json. Make sure it sits next to index.html.</div>
+      <h2 class="section-title">Today</h2>
+      <div class="tiles" id="tiles"></div>
 
-    <h2 class="section-title">Today</h2>
-    <div class="tiles" id="tiles"></div>
+      <h2 class="section-title">This week</h2>
+      <div class="tiles" id="week-tiles"></div>
 
-    <h2 class="section-title">This week</h2>
-    <div class="tiles" id="week-tiles"></div>
+      <h2 class="section-title">Last week</h2>
+      <div class="tiles" id="last-week-tiles"></div>
 
-    <h2 class="section-title">Last week</h2>
-    <div class="tiles" id="last-week-tiles"></div>
+      <section class="log">
+        <h2 class="inner">Weekly log</h2>
+        <table id="week-table">
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th style="text-align:right">Requests sent (est.)</th>
+              <th style="text-align:right">% vs prior week</th>
+              <th style="text-align:right">Requests accepted</th>
+              <th style="text-align:right">% vs prior week</th>
+            </tr>
+          </thead>
+          <tbody id="week-body"></tbody>
+        </table>
+      </section>
 
-    <section class="log">
-      <h2 class="inner">Weekly log</h2>
-      <table id="week-table">
-        <thead>
-          <tr>
-            <th>Week</th>
-            <th style="text-align:right">Requests sent</th>
-            <th style="text-align:right">% vs prior week</th>
-            <th style="text-align:right">Requests accepted</th>
-            <th style="text-align:right">% vs prior week</th>
-          </tr>
-        </thead>
-        <tbody id="week-body"></tbody>
-      </table>
-    </section>
+      <h2 class="section-title">Daily log</h2>
+      <section class="log">
+        <table id="log-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th style="text-align:right">Pending sent</th>
+              <th style="text-align:right">Total connections</th>
+              <th style="text-align:right">New connections</th>
+              <th style="text-align:right">Unread messages</th>
+            </tr>
+          </thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </section>
 
-    <h2 class="section-title">Daily log</h2>
-    <section class="log">
-      <table id="log-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th style="text-align:right">Pending sent</th>
-            <th style="text-align:right">Total connections</th>
-            <th style="text-align:right">New connections</th>
-            <th style="text-align:right">Unread messages</th>
-          </tr>
-        </thead>
-        <tbody id="log-body"></tbody>
-      </table>
-    </section>
-
-    <p class="note">
-      <strong>Pending sent</strong> is the count of outstanding invitations you've sent that haven't been accepted or withdrawn yet (LinkedIn &rarr; My Network &rarr; Manage invitations &rarr; Sent).
-      <strong>Total connections</strong> is your live connection count; <strong>new connections</strong> is the day-over-day increase, used as a proxy for invitations accepted.
-      <strong>Unread messages</strong> is your inbox unread count &mdash; a proxy for replies, not filtered to connection-request threads specifically, since LinkedIn doesn't expose that as a discrete number.
-      <strong>Requests sent</strong> per week is shown two ways. When a week is marked <strong>(manual)</strong>, the number is the actual send count entered by hand &mdash; the source of truth, since LinkedIn doesn't expose a lifetime-sent figure. When marked <strong>(est.)</strong>, no manual number was entered, so it falls back to a derived estimate: (change in pending invitations over the week) + (invitations accepted that week).
-      A week runs Monday&ndash;Sunday. The current week is partial until Sunday closes it, so its % change is versus the prior <em>complete</em> week's total, not a like-for-like comparison, until the week ends.
-    </p>
+      <p class="note">
+        <strong>Pending sent</strong> is the count of outstanding invitations you've sent that haven't been accepted or withdrawn yet (LinkedIn &rarr; My Network &rarr; Manage invitations &rarr; Sent).
+        <strong>Total connections</strong> is your live connection count; <strong>new connections</strong> is the day-over-day increase, used as a proxy for invitations accepted.
+        <strong>Unread messages</strong> is your inbox unread count &mdash; a proxy for replies, not filtered to connection-request threads specifically, since LinkedIn doesn't expose that as a discrete number.
+        <strong>Requests sent</strong> per week is shown two ways. When a week is marked <strong>(manual)</strong>, the number is the actual send count Paul entered by hand &mdash; the source of truth, since LinkedIn doesn't expose a lifetime-sent figure. When marked <strong>(est.)</strong>, no manual number was entered, so it falls back to a derived estimate: (change in pending invitations over the week) + (invitations accepted that week).
+        A week runs Monday&ndash;Sunday. The current week is partial until Sunday closes it, so its % change is versus the prior <em>complete</em> week's total, not a like-for-like comparison, until the week ends.
+      </p>
+    </div>
   </div>
 
 <script>
+  fetch('data.json?ts=' + Date.now()).then(function(r){ return r.json(); }).then(function(data){
+  const history = data.history;
+  const sentOverrides = data.weeklySent || {};
+  const acceptOverrides = data.weeklyAccepted || {};
+  const todayAccepted = (data.todayAccepted !== undefined && data.todayAccepted !== null) ? data.todayAccepted : null;
+  const latest = history[history.length - 1];
+  const prev = history.length > 1 ? history[history.length - 2] : null;
+
   function fmt(n) { return n.toLocaleString('en-US'); }
-
-  function render(data) {
-    const history = data.history || [];
-    const sentOverrides = data.weeklySent || {};
-    const acceptOverrides = data.weeklyAccepted || {};
-    if (!history.length) { document.getElementById('subtitle').textContent = 'No data yet.'; return; }
-    const latest = history[history.length - 1];
-    const prev = history.length > 1 ? history[history.length - 2] : null;
-
-    function deltaHtml(curr, prevVal) {
-      if (prevVal === null || prevVal === undefined) {
-        return '<span class="delta">baseline &mdash; trend builds from next update</span>';
-      }
-      const d = curr - prevVal;
-      const sign = d > 0 ? '+' : '';
-      const cls = d === 0 ? 'delta' : (d > 0 ? 'delta good' : 'delta');
-      return '<span class="' + cls + '">' + sign + fmt(d) + ' vs previous day</span>';
+  function deltaHtml(curr, prevVal, invert) {
+    if (prevVal === null || prevVal === undefined) {
+      return '<span class="delta">baseline &mdash; trend builds from next update</span>';
     }
-
-    document.getElementById('tiles').innerHTML =
-      '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Connection requests pending</div>' +
-        '<div class="value">' + fmt(latest.pendingSent) + '</div>' +
-        deltaHtml(latest.pendingSent, prev ? prev.pendingSent : null) +
-      '</div>' +
-      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>New connections (accepted) ' + (data.todayAccepted != null ? '(counted)' : '') + '</div>' +
-        '<div class="value">' + (data.todayAccepted != null ? fmt(data.todayAccepted) : (prev ? fmt(latest.totalConnections - prev.totalConnections) : '&mdash;')) + '</div>' +
-        '<span class="delta">' + (data.todayAccepted != null ? 'counted from connection dates &middot; ' : '') + 'total connections: ' + fmt(latest.totalConnections) + '</span>' +
-      '</div>' +
-      '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Unread messages (reply proxy)</div>' +
-        '<div class="value">' + fmt(latest.unreadMessages) + '</div>' +
-        deltaHtml(latest.unreadMessages, prev ? prev.unreadMessages : null) +
-      '</div>';
-
-    document.getElementById('log-body').innerHTML = history.slice().reverse().map((row, i) => {
-      const idx = history.length - 1 - i;
-      const priorRow = idx > 0 ? history[idx - 1] : null;
-      const newConn = priorRow ? (row.totalConnections - priorRow.totalConnections) : null;
-      return '<tr>' +
-        '<td>' + row.date + '</td>' +
-        '<td class="num">' + fmt(row.pendingSent) + '</td>' +
-        '<td class="num">' + fmt(row.totalConnections) + '</td>' +
-        '<td class="num">' + (newConn === null ? '&mdash;' : (newConn >= 0 ? '+' : '') + fmt(newConn)) + '</td>' +
-        '<td class="num">' + fmt(row.unreadMessages) + '</td>' +
-      '</tr>';
-    }).join('');
-
-    // ---- Weekly rollups (Monday-start weeks) ----
-    function parseUTC(dateStr) { return new Date(dateStr + 'T00:00:00Z'); }
-    function mondayOf(d) {
-      const day = d.getUTCDay();
-      const diff = (day === 0 ? -6 : 1 - day);
-      const mon = new Date(d);
-      mon.setUTCDate(d.getUTCDate() + diff);
-      return mon;
-    }
-    function iso(d) { return d.toISOString().slice(0, 10); }
-    function fmtShort(d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); }
-
-    const weeksMap = new Map();
-    history.forEach((row, idx) => {
-      const wk = iso(mondayOf(parseUTC(row.date)));
-      if (!weeksMap.has(wk)) weeksMap.set(wk, []);
-      weeksMap.get(wk).push({ row, idx });
-    });
-    const weekKeys = Array.from(weeksMap.keys()).sort();
-
-    const weeks = weekKeys.map((wk) => {
-      const entries = weeksMap.get(wk);
-      const firstEntry = entries[0];
-      const lastEntry = entries[entries.length - 1];
-      const priorRow = firstEntry.idx > 0 ? history[firstEntry.idx - 1] : null;
-      const startConn = priorRow ? priorRow.totalConnections : firstEntry.row.totalConnections;
-      const startPending = priorRow ? priorRow.pendingSent : firstEntry.row.pendingSent;
-      const accepted = lastEntry.row.totalConnections - startConn;
-      const pendingDelta = lastEntry.row.pendingSent - startPending;
-      const sentEst = pendingDelta + accepted;
-      const weekStart = parseUTC(wk);
-      const weekEnd = new Date(weekStart); weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
-      const isComplete = new Date(iso(new Date())) > weekEnd;
-      const canMeasure = !!priorRow || entries.length >= 2;
-      const hasActualSent = Object.prototype.hasOwnProperty.call(sentOverrides, wk);
-      const sentValue = hasActualSent ? sentOverrides[wk] : sentEst;
-      const hasActualAcc = Object.prototype.hasOwnProperty.call(acceptOverrides, wk);
-      const acceptValue = hasActualAcc ? acceptOverrides[wk] : accepted;
-      return { wk, weekStart, weekEnd, sentEst: sentValue, accepted: acceptValue, isActualSent: hasActualSent, isActualAccepted: hasActualAcc, hasBaseline: canMeasure || hasActualSent || hasActualAcc, complete: isComplete };
-    });
-
-    function pctHtml(curr, prevVal) {
-      if (prevVal === null || prevVal === undefined) return '<span class="pct">&mdash;</span>';
-      if (prevVal === 0) return '<span class="pct">n/a</span>';
-      const pct = ((curr - prevVal) / Math.abs(prevVal)) * 100;
-      const cls = pct > 0 ? 'pct good' : 'pct';
-      const sign = pct > 0 ? '+' : '';
-      return '<span class="' + cls + '">' + sign + pct.toFixed(0) + '%</span>';
-    }
-
-    document.getElementById('week-body').innerHTML = weeks.slice().reverse().map((w, i) => {
-      const idx = weeks.length - 1 - i;
-      const priorWeek = idx > 0 ? weeks[idx - 1] : null;
-      const sentPct = priorWeek ? pctHtml(w.sentEst, priorWeek.sentEst) : '<span class="pct">&mdash;</span>';
-      const accPct = priorWeek ? pctHtml(w.accepted, priorWeek.accepted) : '<span class="pct">&mdash;</span>';
-      const label = fmtShort(w.weekStart) + '&ndash;' + fmtShort(w.weekEnd) + (w.complete ? '' : ' (in progress)');
-      return '<tr>' +
-        '<td>' + label + '</td>' +
-        '<td class="num">' + (w.hasBaseline ? fmt(w.sentEst) : '&mdash;') + '</td>' +
-        '<td class="pct-cell">' + (w.hasBaseline ? sentPct : '<span class="pct">baseline</span>') + '</td>' +
-        '<td class="num">' + (w.hasBaseline ? fmt(w.accepted) : '&mdash;') + '</td>' +
-        '<td class="pct-cell">' + (w.hasBaseline ? accPct : '<span class="pct">baseline</span>') + '</td>' +
-      '</tr>';
-    }).join('');
-
-    const currentWeek = weeks[weeks.length - 1];
-    const priorWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
-    document.getElementById('week-tiles').innerHTML =
-      '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent this week ' + (currentWeek.isActualSent ? '(manual)' : '(est.)') + '</div>' +
-        '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.sentEst) : '&mdash;') + '</div>' +
-        (currentWeek.isActualSent ? '<span class="delta">manually entered</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.sentEst > priorWeek.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.sentEst, priorWeek.sentEst).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
-      '</div>' +
-      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted this week ' + (currentWeek.isActualAccepted ? '(counted)' : '') + '</div>' +
-        '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.accepted) : '&mdash;') + '</div>' +
-        (currentWeek.isActualAccepted ? '<span class="delta">counted from connection dates</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.accepted > priorWeek.accepted ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.accepted, priorWeek.accepted).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
-      '</div>' +
-      '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Week status</div>' +
-        '<div class="value" style="font-size:20px;">' + fmtShort(currentWeek.weekStart) + '&ndash;' + fmtShort(currentWeek.weekEnd) + '</div>' +
-        '<span class="delta">' + (currentWeek.complete ? 'complete' : 'in progress') + '</span>' +
-      '</div>';
-
-    // ---- Last week tiles ----
-    const lastWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
-    const weekBefore = weeks.length > 2 ? weeks[weeks.length - 3] : null;
-    const lwEl = document.getElementById('last-week-tiles');
-    if (lastWeek) {
-      const lwSentSub = weekBefore
-        ? '<span class="' + (lastWeek.sentEst > weekBefore.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.sentEst, weekBefore.sentEst).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
-        : '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'estimated') + '</span>';
-      const lwAccSub = weekBefore
-        ? '<span class="' + (lastWeek.accepted > weekBefore.accepted ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.accepted, weekBefore.accepted).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
-        : '<span class="delta">completed week</span>';
-      lwEl.innerHTML =
-        '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent last week ' + (lastWeek.isActualSent ? '(manual)' : '(est.)') + '</div>' +
-          '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.sentEst) : '&mdash;') + '</div>' + lwSentSub +
-        '</div>' +
-        '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted last week</div>' +
-          '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.accepted) : '&mdash;') + '</div>' + lwAccSub +
-        '</div>' +
-        '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Week status</div>' +
-          '<div class="value" style="font-size:20px;">' + fmtShort(lastWeek.weekStart) + '&ndash;' + fmtShort(lastWeek.weekEnd) + '</div>' +
-          '<span class="delta">' + (lastWeek.complete ? 'complete' : 'in progress') + '</span>' +
-        '</div>';
-    } else {
-      lwEl.innerHTML = '<div class="tile"><div class="label">Last week</div><span class="delta">no prior week tracked yet &mdash; fills in once a second week of data exists</span></div>';
-    }
-
-    const stamp = data.updatedAt || latest.date;
-    document.getElementById('subtitle').textContent = 'Last updated ' + stamp + ' · Paul Higgins · source: linkedin.com';
+    const d = curr - prevVal;
+    const goodDir = invert ? d < 0 : d > 0;
+    const sign = d > 0 ? '+' : '';
+    const cls = d === 0 ? 'delta' : (goodDir ? 'delta good' : 'delta');
+    return '<span class="' + cls + '">' + sign + fmt(d) + ' vs previous day</span>';
   }
 
-  fetch('data.json?t=' + Date.now())
-    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(render)
-    .catch(() => {
-      document.getElementById('subtitle').textContent = '';
-      document.getElementById('error').style.display = 'block';
-    });
+  const tilesEl = document.getElementById('tiles');
+  tilesEl.innerHTML =
+    '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Connection requests pending</div>' +
+      '<div class="value">' + fmt(latest.pendingSent) + '</div>' +
+      deltaHtml(latest.pendingSent, prev ? prev.pendingSent : null, false) +
+    '</div>' +
+    '<div class="tile s2"><div class="label"><span class="swatch s2"></span>New connections (accepted) ' + (todayAccepted != null ? '(counted)' : '') + '</div>' +
+      '<div class="value">' + (todayAccepted != null ? fmt(todayAccepted) : (prev ? fmt(latest.totalConnections - prev.totalConnections) : '&mdash;')) + '</div>' +
+      '<span class="delta">' + (todayAccepted != null ? 'counted from connection dates &middot; ' : '') + 'total connections: ' + fmt(latest.totalConnections) + '</span>' +
+    '</div>' +
+    '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Unread messages (reply proxy)</div>' +
+      '<div class="value">' + fmt(latest.unreadMessages) + '</div>' +
+      deltaHtml(latest.unreadMessages, prev ? prev.unreadMessages : null, false) +
+    '</div>';
+
+  const logBody = document.getElementById('log-body');
+  logBody.innerHTML = history.slice().reverse().map((row, i) => {
+    const idx = history.length - 1 - i;
+    const priorRow = idx > 0 ? history[idx - 1] : null;
+    const newConn = priorRow ? (row.totalConnections - priorRow.totalConnections) : null;
+    return '<tr>' +
+      '<td>' + row.date + '</td>' +
+      '<td class="num">' + fmt(row.pendingSent) + '</td>' +
+      '<td class="num">' + fmt(row.totalConnections) + '</td>' +
+      '<td class="num">' + (newConn === null ? '&mdash;' : (newConn >= 0 ? '+' : '') + fmt(newConn)) + '</td>' +
+      '<td class="num">' + fmt(row.unreadMessages) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  // ---- Weekly rollups (Monday-start weeks, computed from the date string) ----
+  function parseUTC(dateStr) { return new Date(dateStr + 'T00:00:00Z'); }
+  function mondayOf(d) {
+    const day = d.getUTCDay(); // 0=Sun..6=Sat
+    const diff = (day === 0 ? -6 : 1 - day);
+    const mon = new Date(d);
+    mon.setUTCDate(d.getUTCDate() + diff);
+    return mon;
+  }
+  function iso(d) { return d.toISOString().slice(0, 10); }
+  function fmtShort(d) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  }
+
+  const weeksMap = new Map(); // weekStartIso -> array of rows, in date order
+  history.forEach((row, idx) => {
+    const wk = iso(mondayOf(parseUTC(row.date)));
+    if (!weeksMap.has(wk)) weeksMap.set(wk, []);
+    weeksMap.get(wk).push({ row, idx });
+  });
+  const weekKeys = Array.from(weeksMap.keys()).sort();
+
+  const weeks = weekKeys.map((wk, wIdx) => {
+    const entries = weeksMap.get(wk);
+    const firstEntry = entries[0];
+    const lastEntry = entries[entries.length - 1];
+    // connections at the moment the week opened = the day before the week's first entry, if it exists
+    const priorRow = firstEntry.idx > 0 ? history[firstEntry.idx - 1] : null;
+    const startConn = priorRow ? priorRow.totalConnections : firstEntry.row.totalConnections;
+    const startPending = priorRow ? priorRow.pendingSent : firstEntry.row.pendingSent;
+    const accepted = lastEntry.row.totalConnections - startConn;
+    const pendingDelta = lastEntry.row.pendingSent - startPending;
+    const sentEst = pendingDelta + accepted;
+    const weekStart = parseUTC(wk);
+    const weekEnd = new Date(weekStart); weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+    const isComplete = entries.length > 0 && new Date(iso(new Date())) > weekEnd; // best-effort; true once past week's Sunday
+    // Show weekly figures whenever the week's change is measurable:
+    // either a prior day anchors the week's open, or there are >=2 entries
+    // within the week to measure first-to-last movement.
+    const canMeasure = !!priorRow || entries.length >= 2;
+    // If an actual counted send total exists for this week (from LinkedIn's
+    // Sent-invitations timestamps), use it instead of the derived estimate.
+    const hasActualSent = Object.prototype.hasOwnProperty.call(sentOverrides, wk);
+    const sentValue = hasActualSent ? sentOverrides[wk] : sentEst;
+    const hasActualAcc = Object.prototype.hasOwnProperty.call(acceptOverrides, wk);
+    const acceptValue = hasActualAcc ? acceptOverrides[wk] : accepted;
+    return {
+      wk, weekStart, weekEnd,
+      sentEst: sentValue, accepted: acceptValue,
+      isActualSent: hasActualSent, isActualAccepted: hasActualAcc,
+      hasBaseline: canMeasure || hasActualSent || hasActualAcc,
+      complete: isComplete
+    };
+  });
+
+  function acceptRate(w) {
+    if (!w || !w.hasBaseline || !w.sentEst || w.sentEst <= 0) return null;
+    return Math.round((w.accepted / w.sentEst) * 100);
+  }
+  function rateStr(w) {
+    const r = acceptRate(w);
+    return r === null ? '&mdash;' : r + '%';
+  }
+
+  function pctHtml(curr, prevVal) {
+    if (prevVal === null || prevVal === undefined || !weeks.length) return '<span class="pct">&mdash;</span>';
+    if (prevVal === 0) return '<span class="pct">n/a</span>';
+    const pct = ((curr - prevVal) / Math.abs(prevVal)) * 100;
+    const cls = pct > 0 ? 'pct good' : 'pct';
+    const sign = pct > 0 ? '+' : '';
+    return '<span class="' + cls + '">' + sign + pct.toFixed(0) + '%</span>';
+  }
+
+  const weekBody = document.getElementById('week-body');
+  weekBody.innerHTML = weeks.slice().reverse().map((w, i) => {
+    const idx = weeks.length - 1 - i;
+    const priorWeek = idx > 0 ? weeks[idx - 1] : null;
+    const sentPct = priorWeek ? pctHtml(w.sentEst, priorWeek.sentEst) : '<span class="pct">&mdash;</span>';
+    const accPct = priorWeek ? pctHtml(w.accepted, priorWeek.accepted) : '<span class="pct">&mdash;</span>';
+    const label = fmtShort(w.weekStart) + '&ndash;' + fmtShort(w.weekEnd) + (w.complete ? '' : ' (in progress)');
+    return '<tr>' +
+      '<td>' + label + '</td>' +
+      '<td class="num">' + (w.hasBaseline ? fmt(w.sentEst) : '&mdash;') + '</td>' +
+      '<td class="pct-cell">' + (w.hasBaseline ? sentPct : '<span class="pct">baseline</span>') + '</td>' +
+      '<td class="num">' + (w.hasBaseline ? fmt(w.accepted) : '&mdash;') + '</td>' +
+      '<td class="pct-cell">' + (w.hasBaseline ? accPct : '<span class="pct">baseline</span>') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  const currentWeek = weeks[weeks.length - 1];
+  const priorWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
+  const weekTilesEl = document.getElementById('week-tiles');
+  weekTilesEl.innerHTML =
+    '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent this week ' + (currentWeek.isActualSent ? '(manual)' : '(est.)') + '</div>' +
+      '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.sentEst) : '&mdash;') + '</div>' +
+      (currentWeek.isActualSent ? '<span class="delta">manually entered by Paul</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.sentEst > priorWeek.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.sentEst, priorWeek.sentEst).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
+    '</div>' +
+    '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted this week ' + (currentWeek.isActualAccepted ? '(counted)' : '') + '</div>' +
+      '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.accepted) : '&mdash;') + '</div>' +
+      (currentWeek.isActualAccepted ? '<span class="delta">counted from connection dates</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.accepted > priorWeek.accepted ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.accepted, priorWeek.accepted).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
+    '</div>' +
+    '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Acceptance rate this week</div>' +
+      '<div class="value">' + rateStr(currentWeek) + '</div>' +
+      '<span class="delta">' + (acceptRate(currentWeek) === null ? 'needs sends logged this week' : fmt(currentWeek.accepted) + ' of ' + fmt(currentWeek.sentEst) + ' sent') + '</span>' +
+    '</div>';
+
+  // ---- Last week tiles ----
+  const lastWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
+  const weekBefore = weeks.length > 2 ? weeks[weeks.length - 3] : null;
+  const lwEl = document.getElementById('last-week-tiles');
+  if (lastWeek) {
+    const lwSentSub = weekBefore
+      ? '<span class="' + (lastWeek.sentEst > weekBefore.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.sentEst, weekBefore.sentEst).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
+      : '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'estimated') + '</span>';
+    const lwAccSub = weekBefore
+      ? '<span class="' + (lastWeek.accepted > weekBefore.accepted ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.accepted, weekBefore.accepted).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
+      : '<span class="delta">completed week</span>';
+    lwEl.innerHTML =
+      '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent last week ' + (lastWeek.isActualSent ? '(manual)' : '(est.)') + '</div>' +
+        '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.sentEst) : '&mdash;') + '</div>' + lwSentSub +
+      '</div>' +
+      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted last week</div>' +
+        '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.accepted) : '&mdash;') + '</div>' + lwAccSub +
+      '</div>' +
+      '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Acceptance rate last week</div>' +
+        '<div class="value">' + rateStr(lastWeek) + '</div>' +
+        '<span class="delta">' + (acceptRate(lastWeek) === null ? 'no sends logged' : fmt(lastWeek.accepted) + ' of ' + fmt(lastWeek.sentEst) + ' sent') + '</span>' +
+      '</div>';
+  } else {
+    lwEl.innerHTML = '<div class="tile"><div class="label">Last week</div><span class="delta">no prior week tracked yet</span></div>';
+  }
+
+  document.getElementById('subtitle').textContent =
+    'Last updated ' + latest.date + ' · Paul Higgins · source: linkedin.com';
+
+  // ---- Header acceptance-rate badge: newest week that has sends logged ----
+  (function () {
+    let chosen = null, chosenLabel = '';
+    for (let i = weeks.length - 1; i >= 0; i--) {
+      if (acceptRate(weeks[i]) !== null) {
+        chosen = weeks[i];
+        chosenLabel = (i === weeks.length - 1) ? 'Acceptance rate · this week'
+                    : (i === weeks.length - 2) ? 'Acceptance rate · last week'
+                    : 'Acceptance rate · ' + fmtShort(chosen.weekStart);
+        break;
+      }
+    }
+    if (chosen) {
+      document.getElementById('ab-value').innerHTML = rateStr(chosen);
+      document.getElementById('ab-label').textContent = chosenLabel;
+      document.getElementById('accept-badge').hidden = false;
+    }
+  })();
+  });
 </script>
 </body>
 </html>
