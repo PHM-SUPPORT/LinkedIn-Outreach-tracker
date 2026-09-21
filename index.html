@@ -1,18 +1,9 @@
-<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
-{
-  "name": "Linkedin Outreach Tracker",
-  "schemaVersion": 1,
-  "description": "Daily tracker of LinkedIn connection requests pending, new connections accepted, and unread messages (reply proxy). Updated once a day via browser automation.",
-  "mcpTools": [],
-  "mcpServerNames": []
-}
-</script>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LinkedIn Outreach Tracker</title>
-
 <style>
   /* Single fixed theme, self-painted. Does NOT rely on the host's
      prefers-color-scheme signal, which is what caused dark-on-dark. */
@@ -256,7 +247,7 @@
           <thead>
             <tr>
               <th>Week</th>
-              <th style="text-align:right">Requests sent (est.)</th>
+              <th style="text-align:right">Requests sent (manual)</th>
               <th style="text-align:right">% vs prior week</th>
               <th style="text-align:right">Requests accepted</th>
               <th style="text-align:right">% vs prior week</th>
@@ -286,18 +277,18 @@
         <strong>Pending sent</strong> is the count of outstanding invitations you've sent that haven't been accepted or withdrawn yet (LinkedIn &rarr; My Network &rarr; Manage invitations &rarr; Sent).
         <strong>Total connections</strong> is your live connection count; <strong>new connections</strong> is the day-over-day increase, used as a proxy for invitations accepted.
         <strong>Unread messages</strong> is your inbox unread count &mdash; a proxy for replies, not filtered to connection-request threads specifically, since LinkedIn doesn't expose that as a discrete number.
-        <strong>Requests sent</strong> per week is shown two ways. When a week is marked <strong>(manual)</strong>, the number is the actual send count Paul entered by hand &mdash; the source of truth, since LinkedIn doesn't expose a lifetime-sent figure. When marked <strong>(est.)</strong>, no manual number was entered, so it falls back to a derived estimate: (change in pending invitations over the week) + (invitations accepted that week).
+        <strong>Requests sent</strong> per week is always the count Paul enters by hand &mdash; the source of truth, since LinkedIn doesn't expose a lifetime-sent figure. Weeks with no number entered show a dash rather than a derived figure; the tracker never estimates sends from pending-invitation movement.
         A week runs Monday&ndash;Sunday. The current week is partial until Sunday closes it, so its % change is versus the prior <em>complete</em> week's total, not a like-for-like comparison, until the week ends.
       </p>
     </div>
   </div>
 
 <script>
-  const history = JSON.parse(document.getElementById('history-data').textContent);
-  const sentOverrides = JSON.parse(document.getElementById('weekly-sent-overrides').textContent);
-  const acceptOverrides = JSON.parse(document.getElementById('weekly-accepted-overrides').textContent);
-  const todayAcceptedEl = document.getElementById('today-accepted');
-  const todayAccepted = todayAcceptedEl ? JSON.parse(todayAcceptedEl.textContent) : null;
+  fetch('data.json?ts=' + Date.now()).then(function(r){ return r.json(); }).then(function(data){
+  const history = data.history;
+  const sentOverrides = data.weeklySent || {};
+  const acceptOverrides = data.weeklyAccepted || {};
+  const todayAccepted = (data.todayAccepted !== undefined && data.todayAccepted !== null) ? data.todayAccepted : null;
   const latest = history[history.length - 1];
   const prev = history.length > 1 ? history[history.length - 2] : null;
 
@@ -385,7 +376,10 @@
     // If an actual counted send total exists for this week (from LinkedIn's
     // Sent-invitations timestamps), use it instead of the derived estimate.
     const hasActualSent = Object.prototype.hasOwnProperty.call(sentOverrides, wk);
-    const sentValue = hasActualSent ? sentOverrides[wk] : sentEst;
+    // Requests sent is manual-only. If no manual number was entered for the week,
+    // show nothing rather than deriving a figure from pending-invitation movement
+    // (which can go negative when pending falls).
+    const sentValue = hasActualSent ? sentOverrides[wk] : null;
     const hasActualAcc = Object.prototype.hasOwnProperty.call(acceptOverrides, wk);
     const acceptValue = hasActualAcc ? acceptOverrides[wk] : accepted;
     return {
@@ -398,7 +392,7 @@
   });
 
   function acceptRate(w) {
-    if (!w || !w.hasBaseline || !w.sentEst || w.sentEst <= 0) return null;
+    if (!w || !w.isActualSent || !w.sentEst || w.sentEst <= 0) return null;
     return Math.round((w.accepted / w.sentEst) * 100);
   }
   function rateStr(w) {
@@ -419,13 +413,13 @@
   weekBody.innerHTML = weeks.slice().reverse().map((w, i) => {
     const idx = weeks.length - 1 - i;
     const priorWeek = idx > 0 ? weeks[idx - 1] : null;
-    const sentPct = priorWeek ? pctHtml(w.sentEst, priorWeek.sentEst) : '<span class="pct">&mdash;</span>';
+    const sentPct = (priorWeek && w.isActualSent && priorWeek.isActualSent) ? pctHtml(w.sentEst, priorWeek.sentEst) : '<span class="pct">&mdash;</span>';
     const accPct = priorWeek ? pctHtml(w.accepted, priorWeek.accepted) : '<span class="pct">&mdash;</span>';
     const label = fmtShort(w.weekStart) + '&ndash;' + fmtShort(w.weekEnd) + (w.complete ? '' : ' (in progress)');
     return '<tr>' +
       '<td>' + label + '</td>' +
-      '<td class="num">' + (w.hasBaseline ? fmt(w.sentEst) : '&mdash;') + '</td>' +
-      '<td class="pct-cell">' + (w.hasBaseline ? sentPct : '<span class="pct">baseline</span>') + '</td>' +
+      '<td class="num">' + (w.isActualSent ? fmt(w.sentEst) : '&mdash;') + '</td>' +
+      '<td class="pct-cell">' + sentPct + '</td>' +
       '<td class="num">' + (w.hasBaseline ? fmt(w.accepted) : '&mdash;') + '</td>' +
       '<td class="pct-cell">' + (w.hasBaseline ? accPct : '<span class="pct">baseline</span>') + '</td>' +
     '</tr>';
@@ -435,9 +429,9 @@
   const priorWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
   const weekTilesEl = document.getElementById('week-tiles');
   weekTilesEl.innerHTML =
-    '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent this week ' + (currentWeek.isActualSent ? '(manual)' : '(est.)') + '</div>' +
-      '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.sentEst) : '&mdash;') + '</div>' +
-      (currentWeek.isActualSent ? '<span class="delta">manually entered by Paul</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.sentEst > priorWeek.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.sentEst, priorWeek.sentEst).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
+    '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent this week (manual)</div>' +
+      '<div class="value">' + (currentWeek.isActualSent ? fmt(currentWeek.sentEst) : '&mdash;') + '</div>' +
+      (currentWeek.isActualSent ? (priorWeek && priorWeek.isActualSent ? '<span class="' + (currentWeek.sentEst > priorWeek.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.sentEst, priorWeek.sentEst).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">manually entered by Paul</span>') : '<span class="delta">enter the week’s send count to display</span>') +
     '</div>' +
     '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted this week ' + (currentWeek.isActualAccepted ? '(counted)' : '') + '</div>' +
       '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.accepted) : '&mdash;') + '</div>' +
@@ -445,7 +439,7 @@
     '</div>' +
     '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Acceptance rate this week</div>' +
       '<div class="value">' + rateStr(currentWeek) + '</div>' +
-      '<span class="delta">' + (acceptRate(currentWeek) === null ? 'needs sends logged this week' : fmt(currentWeek.accepted) + ' of ' + fmt(currentWeek.sentEst) + ' sent') + '</span>' +
+      '<span class="delta">' + (acceptRate(currentWeek) === null ? 'enter this week’s send count' : fmt(currentWeek.accepted) + ' of ' + fmt(currentWeek.sentEst) + ' sent') + '</span>' +
     '</div>';
 
   // ---- Last week tiles ----
@@ -453,22 +447,22 @@
   const weekBefore = weeks.length > 2 ? weeks[weeks.length - 3] : null;
   const lwEl = document.getElementById('last-week-tiles');
   if (lastWeek) {
-    const lwSentSub = weekBefore
+    const lwSentSub = (weekBefore && lastWeek.isActualSent && weekBefore.isActualSent)
       ? '<span class="' + (lastWeek.sentEst > weekBefore.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.sentEst, weekBefore.sentEst).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
-      : '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'estimated') + '</span>';
+      : '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'no send count entered') + '</span>';
     const lwAccSub = weekBefore
       ? '<span class="' + (lastWeek.accepted > weekBefore.accepted ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.accepted, weekBefore.accepted).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
       : '<span class="delta">completed week</span>';
     lwEl.innerHTML =
-      '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent last week ' + (lastWeek.isActualSent ? '(manual)' : '(est.)') + '</div>' +
-        '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.sentEst) : '&mdash;') + '</div>' + lwSentSub +
+      '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent last week (manual)</div>' +
+        '<div class="value">' + (lastWeek.isActualSent ? fmt(lastWeek.sentEst) : '&mdash;') + '</div>' + lwSentSub +
       '</div>' +
       '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted last week</div>' +
         '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.accepted) : '&mdash;') + '</div>' + lwAccSub +
       '</div>' +
       '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Acceptance rate last week</div>' +
         '<div class="value">' + rateStr(lastWeek) + '</div>' +
-        '<span class="delta">' + (acceptRate(lastWeek) === null ? 'no sends logged' : fmt(lastWeek.accepted) + ' of ' + fmt(lastWeek.sentEst) + ' sent') + '</span>' +
+        '<span class="delta">' + (acceptRate(lastWeek) === null ? 'no send count entered' : fmt(lastWeek.accepted) + ' of ' + fmt(lastWeek.sentEst) + ' sent') + '</span>' +
       '</div>';
   } else {
     lwEl.innerHTML = '<div class="tile"><div class="label">Last week</div><span class="delta">no prior week tracked yet</span></div>';
@@ -495,6 +489,7 @@
       document.getElementById('accept-badge').hidden = false;
     }
   })();
+  });
 </script>
 </body>
 </html>
