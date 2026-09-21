@@ -381,7 +381,9 @@
     // (which can go negative when pending falls).
     const sentValue = hasActualSent ? sentOverrides[wk] : null;
     const hasActualAcc = Object.prototype.hasOwnProperty.call(acceptOverrides, wk);
-    const acceptValue = hasActualAcc ? acceptOverrides[wk] : accepted;
+    // Accepted is read straight from data.json's weeklyAccepted; never derived from
+    // the change in total connections (which drifts from the counted value).
+    const acceptValue = hasActualAcc ? acceptOverrides[wk] : null;
     return {
       wk, weekStart, weekEnd,
       sentEst: sentValue, accepted: acceptValue,
@@ -392,7 +394,7 @@
   });
 
   function acceptRate(w) {
-    if (!w || !w.isActualSent || !w.sentEst || w.sentEst <= 0) return null;
+    if (!w || !w.isActualSent || !w.isActualAccepted || !w.sentEst || w.sentEst <= 0) return null;
     return Math.round((w.accepted / w.sentEst) * 100);
   }
   function rateStr(w) {
@@ -414,14 +416,14 @@
     const idx = weeks.length - 1 - i;
     const priorWeek = idx > 0 ? weeks[idx - 1] : null;
     const sentPct = (priorWeek && w.isActualSent && priorWeek.isActualSent) ? pctHtml(w.sentEst, priorWeek.sentEst) : '<span class="pct">&mdash;</span>';
-    const accPct = priorWeek ? pctHtml(w.accepted, priorWeek.accepted) : '<span class="pct">&mdash;</span>';
+    const accPct = (priorWeek && w.isActualAccepted && priorWeek.isActualAccepted) ? pctHtml(w.accepted, priorWeek.accepted) : '<span class="pct">&mdash;</span>';
     const label = fmtShort(w.weekStart) + '&ndash;' + fmtShort(w.weekEnd) + (w.complete ? '' : ' (in progress)');
     return '<tr>' +
       '<td>' + label + '</td>' +
       '<td class="num">' + (w.isActualSent ? fmt(w.sentEst) : '&mdash;') + '</td>' +
       '<td class="pct-cell">' + sentPct + '</td>' +
-      '<td class="num">' + (w.hasBaseline ? fmt(w.accepted) : '&mdash;') + '</td>' +
-      '<td class="pct-cell">' + (w.hasBaseline ? accPct : '<span class="pct">baseline</span>') + '</td>' +
+      '<td class="num">' + (w.isActualAccepted ? fmt(w.accepted) : '&mdash;') + '</td>' +
+      '<td class="pct-cell">' + accPct + '</td>' +
     '</tr>';
   }).join('');
 
@@ -434,8 +436,8 @@
       (currentWeek.isActualSent ? (priorWeek && priorWeek.isActualSent ? '<span class="' + (currentWeek.sentEst > priorWeek.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.sentEst, priorWeek.sentEst).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">manually entered by Paul</span>') : '<span class="delta">enter the week’s send count to display</span>') +
     '</div>' +
     '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted this week ' + (currentWeek.isActualAccepted ? '(counted)' : '') + '</div>' +
-      '<div class="value">' + (currentWeek.hasBaseline ? fmt(currentWeek.accepted) : '&mdash;') + '</div>' +
-      (currentWeek.isActualAccepted ? '<span class="delta">counted from connection dates</span>' : (currentWeek.hasBaseline && priorWeek ? '<span class="' + (currentWeek.accepted > priorWeek.accepted ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.accepted, priorWeek.accepted).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">first tracked week &mdash; % compares once a prior week exists</span>')) +
+      '<div class="value">' + (currentWeek.isActualAccepted ? fmt(currentWeek.accepted) : '&mdash;') + '</div>' +
+      (currentWeek.isActualAccepted ? (priorWeek && priorWeek.isActualAccepted ? '<span class="' + (currentWeek.accepted > priorWeek.accepted ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.accepted, priorWeek.accepted).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">counted from connection dates</span>') : '<span class="delta">no count yet</span>') +
     '</div>' +
     '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Acceptance rate this week</div>' +
       '<div class="value">' + rateStr(currentWeek) + '</div>' +
@@ -450,15 +452,15 @@
     const lwSentSub = (weekBefore && lastWeek.isActualSent && weekBefore.isActualSent)
       ? '<span class="' + (lastWeek.sentEst > weekBefore.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.sentEst, weekBefore.sentEst).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
       : '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'no send count entered') + '</span>';
-    const lwAccSub = weekBefore
+    const lwAccSub = (weekBefore && lastWeek.isActualAccepted && weekBefore.isActualAccepted)
       ? '<span class="' + (lastWeek.accepted > weekBefore.accepted ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.accepted, weekBefore.accepted).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
-      : '<span class="delta">completed week</span>';
+      : '<span class="delta">counted from connection dates</span>';
     lwEl.innerHTML =
       '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent last week (manual)</div>' +
         '<div class="value">' + (lastWeek.isActualSent ? fmt(lastWeek.sentEst) : '&mdash;') + '</div>' + lwSentSub +
       '</div>' +
       '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted last week</div>' +
-        '<div class="value">' + (lastWeek.hasBaseline ? fmt(lastWeek.accepted) : '&mdash;') + '</div>' + lwAccSub +
+        '<div class="value">' + (lastWeek.isActualAccepted ? fmt(lastWeek.accepted) : '&mdash;') + '</div>' + lwAccSub +
       '</div>' +
       '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Acceptance rate last week</div>' +
         '<div class="value">' + rateStr(lastWeek) + '</div>' +
