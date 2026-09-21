@@ -1,9 +1,52 @@
-<!DOCTYPE html>
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Linkedin Outreach Tracker",
+  "schemaVersion": 1,
+  "description": "Daily tracker of LinkedIn connection requests pending, new connections accepted, and unread messages (reply proxy). Updated once a day via browser automation.",
+  "mcpTools": [],
+  "mcpServerNames": []
+}
+</script>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LinkedIn Outreach Tracker</title>
+<script type="application/json" id="history-data">
+[
+  {"date": "2026-07-20", "pendingSent": 177, "totalConnections": 19429, "unreadMessages": 9},
+  {"date": "2026-07-23", "pendingSent": 186, "totalConnections": 19444, "unreadMessages": 2},
+  {"date": "2026-07-24", "pendingSent": 209, "totalConnections": 19451, "unreadMessages": 0},
+  {"date": "2026-07-27", "pendingSent": 196, "totalConnections": 19453, "unreadMessages": 1},
+  {"date": "2026-07-28", "pendingSent": 216, "totalConnections": 19466, "unreadMessages": 0},
+  {"date": "2026-07-29", "pendingSent": 227, "totalConnections": 19468, "unreadMessages": 0},
+  {"date": "2026-07-31", "pendingSent": 260, "totalConnections": 19494, "unreadMessages": 0},
+  {"date": "2026-08-01", "pendingSent": 231, "totalConnections": 19500, "unreadMessages": 1},
+  {"date": "2026-08-03", "pendingSent": 231, "totalConnections": 19500, "unreadMessages": 1},
+  {"date": "2026-08-04", "pendingSent": 236, "totalConnections": 19507, "unreadMessages": 1},
+  {"date": "2026-08-05", "pendingSent": 239, "totalConnections": 19515, "unreadMessages": 4},
+  {"date": "2026-08-06", "pendingSent": 273, "totalConnections": 19523, "unreadMessages": 1},
+  {"date": "2026-08-08", "pendingSent": 286, "totalConnections": 19528, "unreadMessages": 0},
+  {"date": "2026-08-10", "pendingSent": 262, "totalConnections": 19538, "unreadMessages": 2},
+  {"date": "2026-08-12", "pendingSent": 256, "totalConnections": 19545, "unreadMessages": 2},
+  {"date": "2026-08-17", "pendingSent": 263, "totalConnections": 19558, "unreadMessages": 3},
+  {"date": "2026-08-22", "pendingSent": 287, "totalConnections": 19579, "unreadMessages": 9},
+  {"date": "2026-08-24", "pendingSent": 273, "totalConnections": 19586, "unreadMessages": 5},
+  {"date": "2026-08-26", "pendingSent": 291, "totalConnections": 19596, "unreadMessages": 2},
+  {"date": "2026-08-31", "pendingSent": 301, "totalConnections": 19605, "unreadMessages": 4},
+  {"date": "2026-09-07", "pendingSent": 271, "totalConnections": 19631, "unreadMessages": 7},
+  {"date": "2026-09-09", "pendingSent": 150, "totalConnections": 19636, "unreadMessages": 4},
+  {"date": "2026-09-14", "pendingSent": 267, "totalConnections": 19640, "unreadMessages": 3},
+  {"date": "2026-09-21", "pendingSent": 278, "pending30plus": 181, "totalConnections": 19662, "unreadMessages": 0}
+]
+</script>
+<script type="application/json" id="weekly-sent-overrides">
+{"2026-07-27": 89, "2026-08-03": 100, "2026-08-10": 100, "2026-08-17": 100, "2026-08-24": 100, "2026-08-31": 100, "2026-09-07": 90, "2026-09-14": 100}
+</script>
+<script type="application/json" id="weekly-accepted-overrides">
+{"2026-08-03": 41, "2026-08-10": 25, "2026-08-17": 31, "2026-08-24": 29, "2026-08-31": 24, "2026-09-07": 11, "2026-09-14": 19, "2026-09-21": 5}
+</script>
+<script type="application/json" id="today-accepted">5</script>
 <style>
   /* Single fixed theme, self-painted. Does NOT rely on the host's
      prefers-color-scheme signal, which is what caused dark-on-dark. */
@@ -284,11 +327,11 @@
   </div>
 
 <script>
-  fetch('data.json?ts=' + Date.now()).then(function(r){ return r.json(); }).then(function(data){
-  const history = data.history;
-  const sentOverrides = data.weeklySent || {};
-  const acceptOverrides = data.weeklyAccepted || {};
-  const todayAccepted = (data.todayAccepted !== undefined && data.todayAccepted !== null) ? data.todayAccepted : null;
+  const history = JSON.parse(document.getElementById('history-data').textContent);
+  const sentOverrides = JSON.parse(document.getElementById('weekly-sent-overrides').textContent);
+  const acceptOverrides = JSON.parse(document.getElementById('weekly-accepted-overrides').textContent);
+  const todayAcceptedEl = document.getElementById('today-accepted');
+  const todayAccepted = todayAcceptedEl ? JSON.parse(todayAcceptedEl.textContent) : null;
   const latest = history[history.length - 1];
   const prev = history.length > 1 ? history[history.length - 2] : null;
 
@@ -376,13 +419,9 @@
     // If an actual counted send total exists for this week (from LinkedIn's
     // Sent-invitations timestamps), use it instead of the derived estimate.
     const hasActualSent = Object.prototype.hasOwnProperty.call(sentOverrides, wk);
-    // Requests sent is manual-only. If no manual number was entered for the week,
-    // show nothing rather than deriving a figure from pending-invitation movement
-    // (which can go negative when pending falls).
+    // Requests sent is manual-only; never derive it from pending movement (which can go negative).
     const sentValue = hasActualSent ? sentOverrides[wk] : null;
     const hasActualAcc = Object.prototype.hasOwnProperty.call(acceptOverrides, wk);
-    // Accepted is read straight from data.json's weeklyAccepted; never derived from
-    // the change in total connections (which drifts from the counted value).
     const acceptValue = hasActualAcc ? acceptOverrides[wk] : null;
     return {
       wk, weekStart, weekEnd,
@@ -423,7 +462,7 @@
       '<td class="num">' + (w.isActualSent ? fmt(w.sentEst) : '&mdash;') + '</td>' +
       '<td class="pct-cell">' + sentPct + '</td>' +
       '<td class="num">' + (w.isActualAccepted ? fmt(w.accepted) : '&mdash;') + '</td>' +
-      '<td class="pct-cell">' + accPct + '</td>' +
+      '<td class="pct-cell">' + (w.hasBaseline ? accPct : '<span class="pct">baseline</span>') + '</td>' +
     '</tr>';
   }).join('');
 
@@ -491,7 +530,6 @@
       document.getElementById('accept-badge').hidden = false;
     }
   })();
-  });
 </script>
 </body>
 </html>
