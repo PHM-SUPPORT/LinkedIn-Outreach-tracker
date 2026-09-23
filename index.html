@@ -248,9 +248,8 @@
             <tr>
               <th>Week</th>
               <th style="text-align:right">Requests sent (manual)</th>
-              <th style="text-align:right">% vs prior week</th>
               <th style="text-align:right">Requests accepted</th>
-              <th style="text-align:right">% vs prior week</th>
+              <th style="text-align:right">Acceptance rate</th>
             </tr>
           </thead>
           <tbody id="week-body"></tbody>
@@ -316,7 +315,7 @@
     '</div>' +
     '<div class="tile s3"><div class="label"><span class="swatch s3"></span>Unread messages (reply proxy)</div>' +
       '<div class="value">' + fmt(latest.unreadMessages) + '</div>' +
-      deltaHtml(latest.unreadMessages, prev ? prev.unreadMessages : null, false) +
+      '<span class="delta">as of ' + latest.date + '</span>' +
     '</div>';
 
   const logBody = document.getElementById('log-body');
@@ -413,17 +412,12 @@
 
   const weekBody = document.getElementById('week-body');
   weekBody.innerHTML = weeks.slice().reverse().map((w, i) => {
-    const idx = weeks.length - 1 - i;
-    const priorWeek = idx > 0 ? weeks[idx - 1] : null;
-    const sentPct = (priorWeek && w.isActualSent && priorWeek.isActualSent) ? pctHtml(w.sentEst, priorWeek.sentEst) : '<span class="pct">&mdash;</span>';
-    const accPct = (priorWeek && w.isActualAccepted && priorWeek.isActualAccepted) ? pctHtml(w.accepted, priorWeek.accepted) : '<span class="pct">&mdash;</span>';
     const label = fmtShort(w.weekStart) + '&ndash;' + fmtShort(w.weekEnd) + (w.complete ? '' : ' (in progress)');
     return '<tr>' +
       '<td>' + label + '</td>' +
       '<td class="num">' + (w.isActualSent ? fmt(w.sentEst) : '&mdash;') + '</td>' +
-      '<td class="pct-cell">' + sentPct + '</td>' +
       '<td class="num">' + (w.isActualAccepted ? fmt(w.accepted) : '&mdash;') + '</td>' +
-      '<td class="pct-cell">' + accPct + '</td>' +
+      '<td class="num">' + rateStr(w) + '</td>' +
     '</tr>';
   }).join('');
 
@@ -433,11 +427,11 @@
   weekTilesEl.innerHTML =
     '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent this week (manual)</div>' +
       '<div class="value">' + (currentWeek.isActualSent ? fmt(currentWeek.sentEst) : '&mdash;') + '</div>' +
-      (currentWeek.isActualSent ? (priorWeek && priorWeek.isActualSent ? '<span class="' + (currentWeek.sentEst > priorWeek.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.sentEst, priorWeek.sentEst).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">manually entered by Paul</span>') : '<span class="delta">enter the week’s send count to display</span>') +
+      '<span class="delta">' + (currentWeek.isActualSent ? 'manually entered' : 'enter the week’s send count to display') + '</span>' +
     '</div>' +
     '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Requests accepted this week ' + (currentWeek.isActualAccepted ? '(counted)' : '') + '</div>' +
       '<div class="value">' + (currentWeek.isActualAccepted ? fmt(currentWeek.accepted) : '&mdash;') + '</div>' +
-      (currentWeek.isActualAccepted ? (priorWeek && priorWeek.isActualAccepted ? '<span class="' + (currentWeek.accepted > priorWeek.accepted ? 'delta good' : 'delta') + '">' + pctHtml(currentWeek.accepted, priorWeek.accepted).replace(/<[^>]+>/g, '') + ' vs last week</span>' : '<span class="delta">counted from connection dates</span>') : '<span class="delta">no count yet</span>') +
+      '<span class="delta">' + (currentWeek.isActualAccepted ? 'counted from connection dates' : 'no count yet') + '</span>' +
     '</div>' +
     '<div class="tile s2"><div class="label"><span class="swatch s2"></span>Acceptance rate this week</div>' +
       '<div class="value">' + rateStr(currentWeek) + '</div>' +
@@ -449,12 +443,8 @@
   const weekBefore = weeks.length > 2 ? weeks[weeks.length - 3] : null;
   const lwEl = document.getElementById('last-week-tiles');
   if (lastWeek) {
-    const lwSentSub = (weekBefore && lastWeek.isActualSent && weekBefore.isActualSent)
-      ? '<span class="' + (lastWeek.sentEst > weekBefore.sentEst ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.sentEst, weekBefore.sentEst).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
-      : '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'no send count entered') + '</span>';
-    const lwAccSub = (weekBefore && lastWeek.isActualAccepted && weekBefore.isActualAccepted)
-      ? '<span class="' + (lastWeek.accepted > weekBefore.accepted ? 'delta good' : 'delta') + '">' + pctHtml(lastWeek.accepted, weekBefore.accepted).replace(/<[^>]+>/g, '') + ' vs prior week</span>'
-      : '<span class="delta">counted from connection dates</span>';
+    const lwSentSub = '<span class="delta">' + (lastWeek.isActualSent ? 'manually entered' : 'no send count entered') + '</span>';
+    const lwAccSub = '<span class="delta">counted from connection dates</span>';
     lwEl.innerHTML =
       '<div class="tile s1"><div class="label"><span class="swatch s1"></span>Requests sent last week (manual)</div>' +
         '<div class="value">' + (lastWeek.isActualSent ? fmt(lastWeek.sentEst) : '&mdash;') + '</div>' + lwSentSub +
