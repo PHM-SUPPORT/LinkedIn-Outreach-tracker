@@ -57,4 +57,35 @@
     "2026-09-28": 25,
     "2026-10-05": 5
   }
+
+  "platformsPrevWeek": {
+    "weekLabel": "Sep 28 – Oct 4",
+    "total": 22,
+    "breakdown": [
+      {
+        "platform": "HubSpot",
+        "count": 5
+      },
+      {
+        "platform": "Salesforce",
+        "count": 3
+      },
+      {
+        "platform": "NetSuite",
+        "count": 1
+      },
+      {
+        "platform": "Odoo",
+        "count": 1
+      },
+      {
+        "platform": "Microsoft Dynamics",
+        "count": 1
+      },
+      {
+        "platform": "Other / unspecified",
+        "count": 11
+      }
+    ]
+  }
 }
