@@ -43,7 +43,8 @@
     "2026-09-14": 100,
     "2026-09-21": 100,
     "2026-09-28": 100,
-    "2026-10-05": 40
+    "2026-10-05": 90,
+    "2026-10-12": 00
     
   },
   "weeklyAccepted": {
@@ -56,12 +57,13 @@
     "2026-09-14": 30,
     "2026-09-21": 29,
     "2026-09-28": 25,
-    "2026-10-05": 5
+    "2026-10-05": 20,
+    
   },
 
   "platformsPrevWeek": {
-    "weekLabel": "Sep 28 – Oct 4",
-    "total": 25,
+    "weekLabel": "Oct 5 – Oct 11",
+    "total": 20,
     "breakdown": [
       {
         "platform": "HubSpot",
@@ -73,7 +75,7 @@
       },
       {
         "platform": "NetSuite",
-        "count": 1
+        "count": 3
       },
       {
         "platform": "Odoo",
@@ -81,11 +83,11 @@
       },
       {
         "platform": "Microsoft Dynamics",
-        "count": 1
+        "count": 4
       },
       {
         "platform": "Other / unspecified",
-        "count": 11
+        "count": 1
       }
     ]
   }
